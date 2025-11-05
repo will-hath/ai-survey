@@ -102,7 +102,7 @@ def _serialize_conversation_items(items):
 
 @app.route("/api/session", methods=["POST"])
 def create_session():
-    return jsonify({"error": "Not implemented"}), 501
+    return jsonify({"error": "Hi there!"}), 501
     client = openai.OpenAI()
     conversation = client.conversations.create()
     logger.info("conversation: %s", conversation)
