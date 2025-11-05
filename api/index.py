@@ -101,7 +101,6 @@ def _serialize_conversation_items(items):
 
 
 @app.route("/api/session", methods=["POST"])
-@require_password
 def create_session():
     return jsonify({"error": "Not implemented"}), 501
     client = openai.OpenAI()
