@@ -1,31 +1,29 @@
 from flask import Flask
+
+from flask import Flask, jsonify, request as flask_request
+from flask_cors import CORS
+import openai
+from utils import make_response_request
+import logging
+from dotenv import load_dotenv
+import os
+from functools import wraps
+
+logger = logging.getLogger(__name__)
+
+
+# load env
+load_dotenv()
+
+PASSWORD = os.environ.get("PASSWORD")
+if not PASSWORD:
+    raise RuntimeError("PASSWORD environment variable must be set for API access.")
+
 app = Flask(__name__)
 
 @app.route("/api/python")
 def hello_world():
     return "<p>Hello, World!</p>"
-
-
-# from flask import Flask, jsonify, request as flask_request
-# from flask_cors import CORS
-# import openai
-# from utils import make_response_request
-# import logging
-# from dotenv import load_dotenv
-# import os
-# from functools import wraps
-
-# logger = logging.getLogger(__name__)
-
-
-# # load env
-# load_dotenv()
-
-# # PASSWORD = os.environ.get("PASSWORD")
-# # if not PASSWORD:
-# #     raise RuntimeError("PASSWORD environment variable must be set for API access.")
-
-# app = Flask(__name__)
 
 # # Enable CORS for local development (Next.js dev server on port 3000)
 # # Adjust origins if you use a different port/host for the frontend.
