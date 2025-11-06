@@ -113,7 +113,7 @@ export default function WelcomePage() {
           {errorMessage ? (
             <p className="text-center text-sm font-medium text-rose-500">{errorMessage}</p>
           ) : (
-            <p className="text-center text-xs text-neutral-400">This chat is private to you and our research team.</p>
+            <p className="text-center text-xs text-neutral-400">Everything you share stays between you and Alex.</p>
           )}
         </form>
       </div>
