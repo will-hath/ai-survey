@@ -267,7 +267,7 @@ export default function SessionPage() {
 
       if (!response.ok) {
         const errorText =
-          payload.error || `Assistant request failed with status ${response.status}`;
+          payload.error || `Message failed with status ${response.status}`;
         throw new Error(errorText);
       }
 
@@ -327,7 +327,7 @@ export default function SessionPage() {
       return 'Loading conversation…';
     }
     if (isProcessing) {
-      return 'Assistant is thinking…';
+      return ' Typing...';
     }
     if (errorMessage) {
       return 'We hit a snag, but you can try sending another message.';
@@ -443,7 +443,7 @@ export default function SessionPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wide text-slate-400">
-              {statusMessage || disabledReason || 'Ready for your next question'}
+              {statusMessage || disabledReason || 'Type your message here'}
             </span>
             {errorMessage ? (
               <span className="text-xs font-medium text-rose-400">{errorMessage}</span>
@@ -458,7 +458,7 @@ export default function SessionPage() {
               isLoadingHistory
                 ? 'Loading conversation…'
                 : conversationId
-                ? 'Ask a question or describe what you need…'
+                ? 'Type your message here'
                 : 'Conversation unavailable.'
             }
             rows={3}
