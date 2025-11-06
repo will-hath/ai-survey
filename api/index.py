@@ -2,7 +2,12 @@ from flask import Flask, jsonify, request as flask_request
 from flask_cors import CORS
 import openai
 import logging
-from .utils import make_response_request
+
+try:
+    from .utils import make_response_request
+except ImportError:
+    from utils import make_response_request
+
 from dotenv import load_dotenv
 import os
 from functools import wraps
@@ -40,14 +45,14 @@ CORS(
 
 def _is_authorized():
     """Validate the shared password if one is configured."""
-    # if not PASSWORD:
-    #     return True
+    if not PASSWORD:
+        return True
 
-    # auth_header = flask_request.headers.get("Authorization", "")
-    # if auth_header.startswith("Bearer "):
-    #     candidate = auth_header[len("Bearer "):].strip()
-    #     if candidate == PASSWORD:
-    #         return True
+    auth_header = flask_request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        candidate = auth_header[len("Bearer "):].strip()
+        if candidate == PASSWORD:
+            return True
 
     return False
 
@@ -106,6 +111,7 @@ def _serialize_conversation_items(items):
 
 
 @app.route("/api/session", methods=["POST"])
+@require_password
 def create_session():
     client = openai.OpenAI()
     conversation = client.conversations.create()

@@ -146,18 +146,27 @@ export default function SessionPage() {
           return;
         }
 
-        if (assembledMessages.length === 0) {
-          setMessages([
-            {
-              id: createId(),
-              role: 'assistant',
-              content: INITIAL_ASSISTANT_MESSAGE,
-              timestamp: Date.now(),
-            },
-          ]);
-        } else {
-          setMessages(assembledMessages);
-        }
+        const initialAssistantMessage: Message = {
+          id: createId(),
+          role: 'assistant',
+          content: INITIAL_ASSISTANT_MESSAGE,
+          timestamp: Date.now(),
+        };
+
+        const hasInitialMessage = assembledMessages.some(
+          (message) =>
+            message.role === 'assistant' &&
+            message.content.trim() === INITIAL_ASSISTANT_MESSAGE.trim()
+        );
+
+        const nextMessages =
+          assembledMessages.length === 0
+            ? [initialAssistantMessage]
+            : hasInitialMessage
+            ? assembledMessages
+            : [initialAssistantMessage, ...assembledMessages];
+
+        setMessages(nextMessages);
 
         setStatusMessage('Conversation ready. Ask anything!');
         timeoutId = setTimeout(() => {
