@@ -22,7 +22,7 @@ PASSWORD = os.environ.get("PASSWORD")
 if not PASSWORD:
     raise RuntimeError("PASSWORD environment variable must be set for API access.")
 
-INITIAL_ASSISTANT_MESSAGE = ["hi", "i'm supposed to ask you what conspiracy theories you believe in."]
+INITIAL_ASSISTANT_MESSAGE = ["hi", "i'm supposed to ask you what conspiracy theories you believe in"]
 
 app = Flask(__name__)
 
