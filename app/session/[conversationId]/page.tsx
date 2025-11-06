@@ -400,7 +400,7 @@ export default function SessionPage() {
               </p>
               <h1 className="text-xl font-semibold text-neutral-900">Chat with {HOST_FULL_NAME}</h1>
               <p className="text-sm text-neutral-500">
-                You're connected with {HOST_FULL_NAME}, a volunteer helping our misinformation study.
+                You&apos;re connected with {HOST_FULL_NAME}, a volunteer helping our misinformation study.
               </p>
               {conversationId ? (
                 <p className="text-xs text-neutral-400">

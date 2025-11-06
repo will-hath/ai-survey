@@ -85,7 +85,7 @@ export default function WelcomePage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Volunteer chat</p>
           <h1 className="text-2xl font-semibold text-neutral-900">Join your conversation with Alex</h1>
           <p className="text-sm text-neutral-500">
-            You'll be speaking with Alex, a volunteer supporting our misinformation research.
+            You&apos;ll be speaking with Alex, a volunteer supporting our misinformation research.
           </p>
         </header>
 
