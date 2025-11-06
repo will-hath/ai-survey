@@ -129,9 +129,13 @@ def create_session():
                 {
                     "type": "message",
                     "role": "assistant",
-                    "content": message,
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": INITIAL_ASSISTANT_MESSAGE,
+                        }
+                    ],
                 }
-                for message in INITIAL_ASSISTANT_MESSAGE
             ],
         )
     except openai.OpenAIError as exc:
