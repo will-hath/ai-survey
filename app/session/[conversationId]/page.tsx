@@ -443,7 +443,7 @@ export default function SessionPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wide text-slate-400">
-              {statusMessage || disabledReason || 'Type your message here'}
+              {statusMessage || disabledReason || 'Type your message below'}
             </span>
             {errorMessage ? (
               <span className="text-xs font-medium text-rose-400">{errorMessage}</span>
