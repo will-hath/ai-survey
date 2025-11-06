@@ -145,7 +145,7 @@ export default function SessionPage() {
 
         setMessages(assembledMessages);
 
-        setStatusMessage('Conversation ready. Ask anything!');
+        setStatusMessage('Type your message below');
         timeoutId = setTimeout(() => {
           setStatusMessage('');
         }, 2500);
