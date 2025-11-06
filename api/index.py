@@ -22,7 +22,10 @@ PASSWORD = os.environ.get("PASSWORD")
 if not PASSWORD:
     raise RuntimeError("PASSWORD environment variable must be set for API access.")
 
-INITIAL_ASSISTANT_MESSAGE = ["hi", "i'm supposed to ask you what conspiracy theories you believe in"]
+INITIAL_ASSISTANT_MESSAGE = (
+    "Hi, thanks for joining the study. I'm here to chat about any conspiracy "
+    "theories you'd like to discuss. What's on your mind?"
+)
 
 app = Flask(__name__)
 
@@ -126,9 +129,13 @@ def create_session():
                 {
                     "type": "message",
                     "role": "assistant",
-                    "content": message,
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": INITIAL_ASSISTANT_MESSAGE,
+                        }
+                    ],
                 }
-                for message in INITIAL_ASSISTANT_MESSAGE
             ],
         )
     except openai.OpenAIError as exc:

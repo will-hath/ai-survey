@@ -28,7 +28,7 @@ export default function WelcomePage() {
 
     const trimmedPassword = password.trim();
     if (!trimmedPassword) {
-      setErrorMessage('Enter the access password to start a session.');
+      setErrorMessage('Enter the survey access code to continue.');
       return;
     }
 
@@ -56,7 +56,7 @@ export default function WelcomePage() {
         throw new Error(
           payload.error ||
             (response.status === 401
-              ? 'Incorrect password. Please try again.'
+              ? 'Access code not recognized. Please try again.'
               : `Unable to start a session (status ${response.status}).`)
         );
       }
@@ -72,45 +72,49 @@ export default function WelcomePage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Something went wrong while starting your session.'
+          : 'We could not connect to the chat. Please try again.'
       );
       setIsStarting(false);
     }
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 text-slate-100">
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-8 rounded-3xl border border-slate-800/70 bg-slate-900/60 p-10 text-center shadow-[0_45px_120px_rgba(15,23,42,0.65)] backdrop-blur">
-        <header className="flex flex-col gap-3">
-          <h1 className="text-3xl font-semibold sm:text-4xl">Controversial Opinions</h1>
-          <p className="text-base text-slate-400 sm:text-lg">
-            Start a new session whenever you are ready.
+    <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 px-4 py-8 text-neutral-900">
+      <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 shadow-xl">
+        <header className="mb-6 space-y-2 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Volunteer chat</p>
+          <h1 className="text-2xl font-semibold text-neutral-900">Join your conversation with Alex</h1>
+          <p className="text-sm text-neutral-500">
+            You'll be speaking with Alex, a volunteer supporting our misinformation research.
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex w-full flex-col items-center gap-4">
-          <label className="w-full text-left text-sm font-medium text-slate-300">
-            Access password
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
+            Access code
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/50"
-              placeholder="Enter the shared password"
+              className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              placeholder="Enter survey access code"
               autoComplete="current-password"
             />
           </label>
 
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-6 py-3 text-base font-semibold text-sky-950 shadow-lg shadow-sky-900/40 transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:bg-blue-300"
             disabled={isStarting}
           >
-            {isStarting ? 'Preparing your session…' : 'Start session'}
+            {isStarting ? 'Connecting...' : 'Start chat'}
           </button>
+
           {errorMessage ? (
-            <p className="text-sm font-medium text-rose-400">{errorMessage}</p>
-          ) : null}
+            <p className="text-center text-sm font-medium text-rose-500">{errorMessage}</p>
+          ) : (
+            <p className="text-center text-xs text-neutral-400">This chat is private to you and our research team.</p>
+          )}
         </form>
       </div>
     </main>

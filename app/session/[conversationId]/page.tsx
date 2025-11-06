@@ -20,6 +20,11 @@ const createId = () => {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
+const HOST_FULL_NAME = 'Alex Vega';
+const HOST_FIRST_NAME = 'Alex';
+const HOST_TITLE = 'Volunteer researcher';
+const HOST_AVATAR_INITIALS = 'AV';
+
 export default function SessionPage() {
   const params = useParams();
   const rawConversationId = params?.conversationId;
@@ -34,7 +39,7 @@ export default function SessionPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Loading conversation…');
+  const [statusMessage, setStatusMessage] = useState('Loading previous messages...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
@@ -85,13 +90,13 @@ export default function SessionPage() {
         if (isMounted) {
           setIsLoadingHistory(false);
           setStatusMessage('');
-          setPasswordError('Enter the access password to view this conversation.');
+          setPasswordError('Enter the access code to view this chat.');
         }
         return;
       }
 
       setIsLoadingHistory(true);
-      setStatusMessage('Loading conversation…');
+      setStatusMessage('Loading previous messages...');
       setErrorMessage(null);
       setPasswordError(null);
 
@@ -111,7 +116,7 @@ export default function SessionPage() {
           if (isMounted) {
             setPassword(null);
             setPasswordInput('');
-            setPasswordError('Unauthorized. Check the access password.');
+            setPasswordError('Access denied. Check the code.');
             setMessages([]);
             setStatusMessage('');
             setErrorMessage(null);
@@ -145,7 +150,7 @@ export default function SessionPage() {
 
         setMessages(assembledMessages);
 
-        setStatusMessage('Type your message below');
+        setStatusMessage(`${HOST_FIRST_NAME} is online. Share whenever you're ready.`);
         timeoutId = setTimeout(() => {
           setStatusMessage('');
         }, 2500);
@@ -179,7 +184,7 @@ export default function SessionPage() {
     event.preventDefault();
     const trimmed = passwordInput.trim();
     if (!trimmed) {
-      setPasswordError('Enter the access password to continue.');
+      setPasswordError('Enter the access code to continue.');
       return;
     }
 
@@ -190,7 +195,7 @@ export default function SessionPage() {
     setPasswordInput(trimmed);
     setPasswordError(null);
     setErrorMessage(null);
-    setStatusMessage('Loading conversation…');
+    setStatusMessage('Loading previous messages...');
     setIsLoadingHistory(true);
   };
 
@@ -216,8 +221,8 @@ export default function SessionPage() {
     }
 
     if (!password) {
-      setPasswordError('Enter the access password to continue.');
-      setErrorMessage('Access password required.');
+      setPasswordError('Enter the access code to continue.');
+      setErrorMessage('Access code required.');
       return;
     }
 
@@ -236,7 +241,7 @@ export default function SessionPage() {
     setMessages((current) => [...current, userMessage]);
     setInput('');
     setIsProcessing(true);
-    setStatusMessage('Typing...');
+    setStatusMessage(`${HOST_FIRST_NAME} is drafting a reply...`);
     setErrorMessage(null);
     setPasswordError(null);
 
@@ -258,8 +263,8 @@ export default function SessionPage() {
         }
         setPassword(null);
         setPasswordInput('');
-        setPasswordError('Unauthorized. Check the access password.');
-        setErrorMessage('Unauthorized. Check the access password.');
+        setPasswordError('Access denied. Check the code.');
+        setErrorMessage('Access denied. Check the code.');
         setStatusMessage('');
         setMessages((current) => current.filter((message) => message.id !== userMessage.id));
         return;
@@ -276,7 +281,7 @@ export default function SessionPage() {
           ? payload.response
           : Array.isArray(payload.response)
           ? payload.response.join('\n')
-          : 'I’m not sure how to respond to that.';
+          : "I'm not sure how to respond to that.";
 
       const assistantMessage: Message = {
         id: createId(),
@@ -318,19 +323,19 @@ export default function SessionPage() {
 
   const disabledReason = useMemo(() => {
     if (!conversationId) {
-      return 'Conversation is unavailable.';
+      return 'Conversation unavailable.';
     }
     if (!password) {
-      return 'Enter the access password to continue.';
+      return 'Unlock the chat to continue.';
     }
     if (isLoadingHistory) {
-      return 'Loading conversation…';
+      return 'Loading previous messages...';
     }
     if (isProcessing) {
-      return ' Typing...';
+      return `${HOST_FIRST_NAME} is drafting a reply...`;
     }
     if (errorMessage) {
-      return 'We hit a snag, but you can try sending another message.';
+      return 'Message not sent. You can try again.';
     }
     return null;
   }, [conversationId, errorMessage, isLoadingHistory, isProcessing, password]);
@@ -339,40 +344,41 @@ export default function SessionPage() {
 
   if (showPasswordPrompt) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-8 rounded-3xl border border-slate-800/70 bg-slate-900/60 p-8 text-center shadow-[0_45px_120px_rgba(15,23,42,0.65)] backdrop-blur">
-          <header className="flex flex-col gap-3">
-            <h1 className="text-3xl font-semibold sm:text-4xl">Unlock Conversation</h1>
-            <p className="text-base text-slate-400 sm:text-lg">
-              Enter the shared password to access conversation{' '}
-              <code className="rounded bg-slate-800 px-2 py-1 text-sm text-slate-200">
-                {conversationId}
-              </code>
-              .
-            </p>
+      <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 px-4 py-8 text-neutral-900">
+        <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 shadow-xl">
+          <header className="mb-6 space-y-2 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Private chat access</p>
+            <h1 className="text-2xl font-semibold text-neutral-900">Enter your access code</h1>
+            <p className="text-sm text-neutral-500">Use the survey access code to continue.</p>
+            {conversationId ? (
+              <p className="text-xs text-neutral-400">
+                Conversation ID -{' '}
+                <code className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-600">{conversationId}</code>
+              </p>
+            ) : null}
           </header>
 
-          <form onSubmit={handlePasswordFormSubmit} className="flex w-full flex-col items-center gap-4">
-            <label className="w-full text-left text-sm font-medium text-slate-300">
-              Access password
+          <form onSubmit={handlePasswordFormSubmit} className="space-y-4">
+            <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
+              Access code
               <input
                 type="password"
                 value={passwordInput}
                 onChange={(event) => setPasswordInput(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/50"
-                placeholder="Enter the shared password"
+                className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter survey access code"
                 autoComplete="current-password"
               />
             </label>
 
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-6 py-3 text-base font-semibold text-sky-950 shadow-lg shadow-sky-900/40 transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950"
+              className="w-full rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white"
             >
-              Unlock conversation
+              Unlock chat
             </button>
             {passwordError ? (
-              <p className="text-sm font-medium text-rose-400">{passwordError}</p>
+              <p className="text-center text-sm font-medium text-rose-500">{passwordError}</p>
             ) : null}
           </form>
         </div>
@@ -381,55 +387,69 @@ export default function SessionPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-slate-950 px-4 py-10 text-slate-100 md:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 rounded-3xl border border-slate-800/70 bg-slate-900/60 p-6 shadow-[0_45px_120px_rgba(15,23,42,0.65)] backdrop-blur">
-        <header className="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-semibold sm:text-3xl">Controversial Opinions</h1>
-            <p className="text-sm text-slate-400 sm:text-base">
-              Talk about your most controversial opinions with experts.
-            </p>
+    <main className="flex min-h-screen flex-col bg-neutral-100 px-3 py-6 text-neutral-900 sm:px-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-xl">
+        <header className="flex flex-col gap-4 border-b border-neutral-200 bg-neutral-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
+              {HOST_AVATAR_INITIALS}
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                {HOST_TITLE}
+              </p>
+              <h1 className="text-xl font-semibold text-neutral-900">Chat with {HOST_FULL_NAME}</h1>
+              <p className="text-sm text-neutral-500">
+                You're connected with {HOST_FULL_NAME}, a volunteer helping our misinformation study.
+              </p>
+              {conversationId ? (
+                <p className="text-xs text-neutral-400">
+                  Conversation ID -{' '}
+                  <code className="rounded bg-white px-2 py-1 text-xs text-neutral-600">{conversationId}</code>
+                </p>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
             onClick={handlePasswordReset}
-            className="self-start rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300 transition hover:border-sky-400 hover:text-sky-300"
+            className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-100"
           >
-            Change password
+            Switch access code
           </button>
         </header>
 
         <section
           ref={listRef}
-          className="flex-1 overflow-y-auto rounded-2xl border border-slate-800/60 bg-slate-950/60 p-4 shadow-inner"
+          className="flex-1 overflow-y-auto bg-neutral-50 px-6 py-6"
           aria-live="polite"
         >
           {isLoadingHistory ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              Loading conversation…
+            <div className="flex h-full items-center justify-center text-sm text-neutral-500">
+              Loading previous messages...
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              {errorMessage || 'Say hello to get started!'}
+            <div className="flex h-full items-center justify-center text-sm text-neutral-500">
+              {errorMessage || 'Send a note to get started.'}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
               {messages.map((message) => {
                 const isUser = message.role === 'user';
+                const bubbleClasses = isUser
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white text-neutral-800 shadow-sm ring-1 ring-neutral-200';
+                const nameClasses = isUser ? 'text-white/70' : 'text-neutral-500';
+
                 return (
-                  <article
-                    key={message.id}
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg transition ${
-                      isUser
-                        ? 'self-end bg-sky-500 text-sky-950 shadow-sky-900/40'
-                        : 'self-start border border-slate-800 bg-slate-900/80 text-slate-100'
-                    }`}
-                  >
-                    <header className="mb-1 text-xs uppercase tracking-wide text-slate-300/80">
-                      {isUser ? 'You' : 'Anonymous'}
-                    </header>
-                    <p>{message.content}</p>
-                  </article>
+                  <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <article className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${bubbleClasses}`}>
+                      <header className={`mb-1 text-xs font-medium ${nameClasses}`}>
+                        {isUser ? 'You' : HOST_FULL_NAME}
+                      </header>
+                      <p>{message.content}</p>
+                    </article>
+                  </div>
                 );
               })}
             </div>
@@ -439,41 +459,39 @@ export default function SessionPage() {
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-950/60 p-4 shadow-inner"
+          className="border-t border-neutral-200 bg-white px-6 py-5"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-slate-400">
-              {statusMessage || disabledReason || 'Type your message below'}
-            </span>
-            {errorMessage ? (
-              <span className="text-xs font-medium text-rose-400">{errorMessage}</span>
-            ) : null}
-          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isLoadingHistory
+                  ? 'Loading previous messages...'
+                  : conversationId
+                  ? 'Share your thoughts here'
+                  : 'Conversation unavailable.'
+              }
+              rows={3}
+              className="w-full resize-none rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm leading-relaxed text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-neutral-100"
+              disabled={!conversationId || isProcessing || isLoadingHistory}
+            />
 
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isLoadingHistory
-                ? 'Loading conversation…'
-                : conversationId
-                ? 'Type your message here'
-                : 'Conversation unavailable.'
-            }
-            rows={3}
-            className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm leading-relaxed text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!conversationId || isProcessing || isLoadingHistory}
-          />
-
-          <div className="flex items-center justify-end gap-3">
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2 text-sm font-semibold text-sky-950 shadow-lg shadow-sky-900/40 transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:bg-blue-300"
               disabled={!conversationId || isProcessing || isLoadingHistory}
             >
-              {isProcessing ? 'Thinking…' : 'Send'}
+              {isProcessing ? 'Sending...' : 'Send message'}
             </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+            <span>{statusMessage || disabledReason || 'Press Enter to send - Shift+Enter for a new line.'}</span>
+            {errorMessage ? (
+              <span className="font-medium text-rose-500">{errorMessage}</span>
+            ) : null}
           </div>
         </form>
       </div>
