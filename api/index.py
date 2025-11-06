@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 # load env
 load_dotenv()
 
-PASSWORD = os.environ.get("PASSWORD")
-if not PASSWORD:
-    raise RuntimeError("PASSWORD environment variable must be set for API access.")
+# PASSWORD = os.environ.get("PASSWORD")
+# if not PASSWORD:
+#     raise RuntimeError("PASSWORD environment variable must be set for API access.")
 
 app = Flask(__name__)
 
