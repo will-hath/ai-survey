@@ -22,9 +22,11 @@ PASSWORD = os.environ.get("PASSWORD")
 if not PASSWORD:
     raise RuntimeError("PASSWORD environment variable must be set for API access.")
 
+INITIAL_ASSISTANT_MESSAGE = "Hi, what is your most controversial opinion?"
+
 app = Flask(__name__)
 
-@app.route("/api/python")
+@app.route("/api/hello")
 def hello_world():
     return "<p>Hello, World!</p>"
 
@@ -114,9 +116,36 @@ def _serialize_conversation_items(items):
 @require_password
 def create_session():
     client = openai.OpenAI()
-    conversation = client.conversations.create()
-    logger.info("conversation: %s", conversation)
-    return jsonify({"conversation_id": conversation.id})
+    try:
+        conversation = client.conversations.create()
+        logger.info("conversation: %s", conversation)
+
+        created_items = client.conversations.items.create(
+            conversation_id=conversation.id,
+            items=[
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": INITIAL_ASSISTANT_MESSAGE,
+                }
+            ],
+        )
+    except openai.OpenAIError as exc:
+        logger.exception("Failed to initialize conversation")
+        return jsonify({"error": str(exc)}), 500
+
+    items = getattr(created_items, "data", None)
+    if items is None:
+        if hasattr(created_items, "model_dump"):
+            payload = created_items.model_dump()
+            items = payload.get("data", [])
+        elif isinstance(created_items, dict):
+            items = created_items.get("data", [])
+        else:
+            items = []
+
+    messages = _serialize_conversation_items(items)
+    return jsonify({"conversation_id": conversation.id, "messages": messages})
 
 
 @app.route("/api/session/<conversation_id>/message", methods=["POST"])
