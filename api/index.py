@@ -129,12 +129,8 @@ def _attach_belief_context(
             items=[
                 {
                     "type": "message",
-                    "role": "system",
+                    "role": "user",
                     "content": [
-                        {
-                            "type": "input_text",
-                            "text": f"Reference document for {belief.name}. Use it to ground the conversation.",
-                        },
                         {
                             "type": "input_file",
                             "file_url": belief.doc_url,
