@@ -1,8 +1,18 @@
 'use client';
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { resolveApiUrl, PASSWORD_STORAGE_KEY } from '@/lib/api';
+import { useParams, useSearchParams } from 'next/navigation';
+import { resolveApiUrl, PASSWORD_STORAGE_KEY, PARTICIPANT_NAME_STORAGE_KEY } from '@/lib/api';
+import {
+  Agent,
+  Belief,
+  clearSessionMetadata,
+  getAgentByKey,
+  getBeliefByKey,
+  loadSessionMetadata,
+  parseSurveyParams,
+  persistSessionMetadata,
+} from '@/lib/scenarios';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -20,20 +30,24 @@ const createId = () => {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
-const HOST_FULL_NAME = 'Alex Vega';
-const HOST_FIRST_NAME = 'Alex';
-const HOST_TITLE = 'Volunteer researcher';
-const HOST_AVATAR_INITIALS = 'AV';
-
 export default function SessionPage() {
   const params = useParams();
   const rawConversationId = params?.conversationId;
   const conversationId = Array.isArray(rawConversationId)
     ? rawConversationId[0]
     : rawConversationId;
+  const searchParams = useSearchParams();
+  const { agentKey: queryAgentKey, beliefKey: queryBeliefKey, responderId: responderIdFromQuery } = useMemo(
+    () => parseSurveyParams(searchParams),
+    [searchParams]
+  );
 
   const [password, setPassword] = useState<string | null>(null);
+  const [nameInput, setNameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [agent, setAgent] = useState<Agent | null>(() => getAgentByKey(queryAgentKey));
+  const [belief, setBelief] = useState<Belief | null>(() => getBeliefByKey(queryBeliefKey));
+  const [responderId, setResponderId] = useState(responderIdFromQuery ?? '');
   const [isPasswordReady, setIsPasswordReady] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,6 +56,11 @@ export default function SessionPage() {
   const [statusMessage, setStatusMessage] = useState('Loading previous messages...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  const hostFullName = agent?.displayName ?? 'Alex Vega';
+  const hostFirstName = hostFullName.split(' ')[0] ?? hostFullName;
+  const hostTitle = agent?.title ?? 'Volunteer researcher';
+  const hostAvatarInitials = agent?.avatarInitials ?? 'AV';
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -55,8 +74,37 @@ export default function SessionPage() {
       setPassword(stored);
       setPasswordInput(stored);
     }
+    const storedName = window.localStorage.getItem(PARTICIPANT_NAME_STORAGE_KEY);
+    if (storedName) {
+      setNameInput(storedName);
+    }
     setIsPasswordReady(true);
   }, []);
+
+  useEffect(() => {
+    if (queryAgentKey) {
+      setAgent(getAgentByKey(queryAgentKey));
+    }
+    if (queryBeliefKey) {
+      setBelief(getBeliefByKey(queryBeliefKey));
+    }
+    if (responderIdFromQuery) {
+      setResponderId(responderIdFromQuery);
+    }
+  }, [queryAgentKey, queryBeliefKey, responderIdFromQuery]);
+
+  useEffect(() => {
+    if (!conversationId) {
+      return;
+    }
+    const stored = loadSessionMetadata(conversationId);
+    if (!stored) {
+      return;
+    }
+    setResponderId((current) => current || stored.responderId);
+    setAgent((current) => current ?? getAgentByKey(stored.agentKey));
+    setBelief((current) => current ?? getBeliefByKey(stored.beliefKey));
+  }, [conversationId]);
 
   useEffect(() => {
     if (!listRef.current) {
@@ -134,6 +182,28 @@ export default function SessionPage() {
         }
 
         const history = Array.isArray(payload.messages) ? payload.messages : [];
+        const metadata = payload.metadata;
+        if (metadata?.agent) {
+          setAgent(metadata.agent as Agent);
+        }
+        if (metadata?.belief) {
+          setBelief(metadata.belief as Belief);
+        }
+        if (metadata?.responderId) {
+          setResponderId(metadata.responderId);
+        }
+        if (
+          conversationId &&
+          metadata?.responderId &&
+          metadata?.agentKey &&
+          metadata?.beliefKey
+        ) {
+          persistSessionMetadata(conversationId, {
+            responderId: metadata.responderId,
+            agentKey: metadata.agentKey,
+            beliefKey: metadata.beliefKey,
+          });
+        }
         const assembledMessages: Message[] = history.map((item: any) => ({
           id: typeof item.id === 'string' ? item.id : createId(),
           role: item.role === 'assistant' ? 'assistant' : 'user',
@@ -150,7 +220,11 @@ export default function SessionPage() {
 
         setMessages(assembledMessages);
 
-        setStatusMessage(`${HOST_FIRST_NAME} is online. Share whenever you're ready.`);
+        const displayAgent = metadata?.agent ?? agent;
+        const displayName =
+          (displayAgent?.displayName as string | undefined) ?? 'Alex';
+        const firstName = displayName.split(' ')[0] ?? displayName;
+        setStatusMessage(`${firstName} is online. Share whenever you're ready.`);
         timeoutId = setTimeout(() => {
           setStatusMessage('');
         }, 2500);
@@ -183,16 +257,23 @@ export default function SessionPage() {
   const handlePasswordFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = passwordInput.trim();
+    const trimmedName = nameInput.trim();
+    if (!trimmedName) {
+      setPasswordError('Enter your name to continue.');
+      return;
+    }
     if (!trimmed) {
       setPasswordError('Enter the access code to continue.');
       return;
     }
 
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(PARTICIPANT_NAME_STORAGE_KEY, trimmedName);
       window.localStorage.setItem(PASSWORD_STORAGE_KEY, trimmed);
     }
     setPassword(trimmed);
     setPasswordInput(trimmed);
+    setNameInput(trimmedName);
     setPasswordError(null);
     setErrorMessage(null);
     setStatusMessage('Loading previous messages...');
@@ -201,10 +282,18 @@ export default function SessionPage() {
 
   const handlePasswordReset = () => {
     if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(PARTICIPANT_NAME_STORAGE_KEY);
       window.localStorage.removeItem(PASSWORD_STORAGE_KEY);
     }
+    if (conversationId) {
+      clearSessionMetadata(conversationId);
+    }
     setPassword(null);
+    setNameInput('');
     setPasswordInput('');
+    setResponderId(responderIdFromQuery ?? '');
+    setAgent(getAgentByKey(queryAgentKey));
+    setBelief(getBeliefByKey(queryBeliefKey));
     setPasswordError(null);
     setErrorMessage(null);
     setStatusMessage('');
@@ -241,7 +330,7 @@ export default function SessionPage() {
     setMessages((current) => [...current, userMessage]);
     setInput('');
     setIsProcessing(true);
-    setStatusMessage(`${HOST_FIRST_NAME} is drafting a reply...`);
+    setStatusMessage(`${hostFirstName} is drafting a reply...`);
     setErrorMessage(null);
     setPasswordError(null);
 
@@ -252,7 +341,12 @@ export default function SessionPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${password}`,
         },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({
+          message: trimmed,
+          responderId,
+          agentKey: agent?.key,
+          beliefKey: belief?.key,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -332,7 +426,7 @@ export default function SessionPage() {
       return 'Loading previous messages...';
     }
     if (isProcessing) {
-      return `${HOST_FIRST_NAME} is drafting a reply...`;
+      return `${hostFirstName} is drafting a reply...`;
     }
     if (errorMessage) {
       return 'Message not sent. You can try again.';
@@ -359,6 +453,18 @@ export default function SessionPage() {
           </header>
 
           <form onSubmit={handlePasswordFormSubmit} className="space-y-4">
+            <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
+              Your name
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter the name Alex should use"
+                autoComplete="name"
+              />
+            </label>
+
             <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
               Access code
               <input
@@ -392,16 +498,20 @@ export default function SessionPage() {
         <header className="flex flex-col gap-4 border-b border-neutral-200 bg-neutral-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
-              {HOST_AVATAR_INITIALS}
+              {hostAvatarInitials}
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                {HOST_TITLE}
+                {hostTitle}
               </p>
-              <h1 className="text-xl font-semibold text-neutral-900">Chat with {HOST_FULL_NAME}</h1>
+              <h1 className="text-xl font-semibold text-neutral-900">Chat with {hostFullName}</h1>
               <p className="text-sm text-neutral-500">
-                You&apos;re connected with {HOST_FULL_NAME}, a volunteer helping our misinformation study.
+                You&apos;re connected with {hostFullName}
+                {belief ? ` to discuss ${belief.name}.` : ', a volunteer helping our misinformation study.'}
               </p>
+              {belief?.summary ? (
+                <p className="text-xs text-neutral-400">{belief.summary}</p>
+              ) : null}
               {conversationId ? (
                 <p className="text-xs text-neutral-400">
                   Conversation ID -{' '}
@@ -410,13 +520,6 @@ export default function SessionPage() {
               ) : null}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handlePasswordReset}
-            className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-100"
-          >
-            Switch access code
-          </button>
         </header>
 
         <section
@@ -445,7 +548,7 @@ export default function SessionPage() {
                   <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                     <article className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${bubbleClasses}`}>
                       <header className={`mb-1 text-xs font-medium ${nameClasses}`}>
-                        {isUser ? 'You' : HOST_FULL_NAME}
+                        {isUser ? 'You' : hostFullName}
                       </header>
                       <p>{message.content}</p>
                     </article>

@@ -23,6 +23,23 @@ On localhost, the rewrite will be made to the `127.0.0.1:5328` port, which is wh
 
 In production, the Flask server is hosted as [Python serverless functions](https://vercel.com/docs/concepts/functions/serverless-functions/runtimes/python) on Vercel.
 
+## Survey configuration
+
+- Edit `config/scenarios.json` to manage the four agent personas and four conspiracy belief assignments. Each agent entry controls the display name, title, avatar initials, intro message, and prompt id that is sent to OpenAI. Each belief entry stores the Google Doc URL that is injected into the conversation context (the assistant receives the linked PDF before greeting the respondent).
+- Both the frontend and backend load this JSON file directly, so any change is immediately reflected in the UI and in the Flask API without duplicating settings in two places.
+
+## Qualtrics hand-off parameters
+
+Qualtrics should redirect respondents to this site with three query parameters in the URL:
+
+| Key | Purpose | Example |
+| --- | --- | --- |
+| `responder_id` (alias `rid`) | Unique Qualtrics response identifier. Stored in the conversation metadata and attached to every response request. | `responder_id=R_12345` |
+| `a` | Obfuscated agent key. Maps to one of the entries in `config/scenarios.json`. | `a=m` |
+| `b` | Obfuscated belief key. Maps to one of the belief entries. | `b=c` |
+
+The welcome page surfaces these assignments (and lets you edit the responder id if you need to paste it manually), while the session view rehydrates the agent/belief metadata for display even after a refresh.
+
 ## Demo
 
 https://nextjs-flask-starter.vercel.app/
@@ -66,6 +83,15 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 The Flask server will be running on [http://127.0.0.1:5328](http://127.0.0.1:5328) – feel free to change the port in `package.json` (you'll also need to update it in `next.config.js`).
+
+## Testing
+
+Install the Python dependencies (including `pytest`) and run the backend unit tests with:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 -m pytest
+```
 
 ## Learn More
 
