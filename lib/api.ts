@@ -1,7 +1,7 @@
 'use client';
 
-export const PASSWORD_STORAGE_KEY = 'gpt5-session-password';
-export const PARTICIPANT_NAME_STORAGE_KEY = 'gpt5-participant-name';
+export const SHARED_PASSWORD =
+  process.env.NEXT_PUBLIC_SHARED_PASSWORD?.trim() ?? '';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? '';

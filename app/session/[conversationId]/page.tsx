@@ -2,11 +2,10 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { resolveApiUrl, PASSWORD_STORAGE_KEY, PARTICIPANT_NAME_STORAGE_KEY } from '@/lib/api';
+import { resolveApiUrl, SHARED_PASSWORD } from '@/lib/api';
 import {
   Agent,
   Belief,
-  clearSessionMetadata,
   getAgentByKey,
   getBeliefByKey,
   loadSessionMetadata,
@@ -42,14 +41,9 @@ export default function SessionPage() {
     [searchParams]
   );
 
-  const [password, setPassword] = useState<string | null>(null);
-  const [nameInput, setNameInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
   const [agent, setAgent] = useState<Agent | null>(() => getAgentByKey(queryAgentKey));
   const [belief, setBelief] = useState<Belief | null>(() => getBeliefByKey(queryBeliefKey));
   const [responderId, setResponderId] = useState(responderIdFromQuery ?? '');
-  const [isPasswordReady, setIsPasswordReady] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -57,29 +51,15 @@ export default function SessionPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  const hostFullName = agent?.displayName ?? 'Alex Vega';
-  const hostFirstName = hostFullName.split(' ')[0] ?? hostFullName;
+  const hostFullName = agent?.displayName ?? null;
+  const hostDisplayName = hostFullName ?? 'your research partner';
+  const hostFirstName = hostFullName?.split(' ')[0] ?? hostDisplayName;
   const hostTitle = agent?.title ?? 'Volunteer researcher';
   const hostAvatarInitials = agent?.avatarInitials ?? 'AV';
+  const sharedPassword = SHARED_PASSWORD?.trim() || null;
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const stored = window.localStorage.getItem(PASSWORD_STORAGE_KEY);
-    if (stored) {
-      setPassword(stored);
-      setPasswordInput(stored);
-    }
-    const storedName = window.localStorage.getItem(PARTICIPANT_NAME_STORAGE_KEY);
-    if (storedName) {
-      setNameInput(storedName);
-    }
-    setIsPasswordReady(true);
-  }, []);
 
   useEffect(() => {
     if (queryAgentKey) {
@@ -117,10 +97,6 @@ export default function SessionPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (!isPasswordReady) {
-      return;
-    }
-
     let isMounted = true;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -134,40 +110,26 @@ export default function SessionPage() {
         return;
       }
 
-      if (!password) {
-        if (isMounted) {
-          setIsLoadingHistory(false);
-          setStatusMessage('');
-          setPasswordError('Enter the access code to view this chat.');
-        }
-        return;
-      }
-
       setIsLoadingHistory(true);
       setStatusMessage('Loading previous messages...');
       setErrorMessage(null);
-      setPasswordError(null);
 
       try {
+        const headers: Record<string, string> = {};
+        if (sharedPassword) {
+          headers.Authorization = `Bearer ${sharedPassword}`;
+        }
         const response = await fetch(resolveApiUrl(`session/${conversationId}`), {
           method: 'GET',
-          headers: {
-            Authorization: `Bearer ${password}`,
-          },
+          headers,
         });
         const payload = await response.json().catch(() => ({}));
 
         if (response.status === 401) {
-          if (typeof window !== 'undefined') {
-            window.localStorage.removeItem(PASSWORD_STORAGE_KEY);
-          }
           if (isMounted) {
-            setPassword(null);
-            setPasswordInput('');
-            setPasswordError('Access denied. Check the code.');
+            setErrorMessage('Access denied. Contact the research team.');
             setMessages([]);
             setStatusMessage('');
-            setErrorMessage(null);
           }
           return;
         }
@@ -222,7 +184,7 @@ export default function SessionPage() {
 
         const displayAgent = metadata?.agent ?? agent;
         const displayName =
-          (displayAgent?.displayName as string | undefined) ?? 'Alex';
+          (displayAgent?.displayName as string | undefined) ?? 'your research partner';
         const firstName = displayName.split(' ')[0] ?? displayName;
         setStatusMessage(`${firstName} is online. Share whenever you're ready.`);
         timeoutId = setTimeout(() => {
@@ -252,66 +214,12 @@ export default function SessionPage() {
         clearTimeout(timeoutId);
       }
     };
-  }, [conversationId, password, isPasswordReady]);
-
-  const handlePasswordFormSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = passwordInput.trim();
-    const trimmedName = nameInput.trim();
-    if (!trimmedName) {
-      setPasswordError('Enter your name to continue.');
-      return;
-    }
-    if (!trimmed) {
-      setPasswordError('Enter the access code to continue.');
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(PARTICIPANT_NAME_STORAGE_KEY, trimmedName);
-      window.localStorage.setItem(PASSWORD_STORAGE_KEY, trimmed);
-    }
-    setPassword(trimmed);
-    setPasswordInput(trimmed);
-    setNameInput(trimmedName);
-    setPasswordError(null);
-    setErrorMessage(null);
-    setStatusMessage('Loading previous messages...');
-    setIsLoadingHistory(true);
-  };
-
-  const handlePasswordReset = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(PARTICIPANT_NAME_STORAGE_KEY);
-      window.localStorage.removeItem(PASSWORD_STORAGE_KEY);
-    }
-    if (conversationId) {
-      clearSessionMetadata(conversationId);
-    }
-    setPassword(null);
-    setNameInput('');
-    setPasswordInput('');
-    setResponderId(responderIdFromQuery ?? '');
-    setAgent(getAgentByKey(queryAgentKey));
-    setBelief(getBeliefByKey(queryBeliefKey));
-    setPasswordError(null);
-    setErrorMessage(null);
-    setStatusMessage('');
-    setMessages([]);
-    setIsProcessing(false);
-    setIsLoadingHistory(false);
-  };
+  }, [conversationId, sharedPassword]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!conversationId || isProcessing || isLoadingHistory) {
-      return;
-    }
-
-    if (!password) {
-      setPasswordError('Enter the access code to continue.');
-      setErrorMessage('Access code required.');
       return;
     }
 
@@ -332,15 +240,17 @@ export default function SessionPage() {
     setIsProcessing(true);
     setStatusMessage(`${hostFirstName} is drafting a reply...`);
     setErrorMessage(null);
-    setPasswordError(null);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (sharedPassword) {
+        headers.Authorization = `Bearer ${sharedPassword}`;
+      }
       const response = await fetch(resolveApiUrl(`session/${conversationId}/message`), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${password}`,
-        },
+        headers,
         body: JSON.stringify({
           message: trimmed,
           responderId,
@@ -352,13 +262,7 @@ export default function SessionPage() {
       const payload = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        if (typeof window !== 'undefined') {
-          window.localStorage.removeItem(PASSWORD_STORAGE_KEY);
-        }
-        setPassword(null);
-        setPasswordInput('');
-        setPasswordError('Access denied. Check the code.');
-        setErrorMessage('Access denied. Check the code.');
+        setErrorMessage('Access denied. Contact the research team.');
         setStatusMessage('');
         setMessages((current) => current.filter((message) => message.id !== userMessage.id));
         return;
@@ -419,9 +323,6 @@ export default function SessionPage() {
     if (!conversationId) {
       return 'Conversation unavailable.';
     }
-    if (!password) {
-      return 'Unlock the chat to continue.';
-    }
     if (isLoadingHistory) {
       return 'Loading previous messages...';
     }
@@ -432,65 +333,7 @@ export default function SessionPage() {
       return 'Message not sent. You can try again.';
     }
     return null;
-  }, [conversationId, errorMessage, isLoadingHistory, isProcessing, password]);
-
-  const showPasswordPrompt = isPasswordReady && !password;
-
-  if (showPasswordPrompt) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 px-4 py-8 text-neutral-900">
-        <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 shadow-xl">
-          <header className="mb-6 space-y-2 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Private chat access</p>
-            <h1 className="text-2xl font-semibold text-neutral-900">Enter your access code</h1>
-            <p className="text-sm text-neutral-500">Use the survey access code to continue.</p>
-            {conversationId ? (
-              <p className="text-xs text-neutral-400">
-                Conversation ID -{' '}
-                <code className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-600">{conversationId}</code>
-              </p>
-            ) : null}
-          </header>
-
-          <form onSubmit={handlePasswordFormSubmit} className="space-y-4">
-            <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
-              Your name
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                placeholder="Enter the name Alex should use"
-                autoComplete="name"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
-              Access code
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={(event) => setPasswordInput(event.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                placeholder="Enter survey access code"
-                autoComplete="current-password"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="w-full rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white"
-            >
-              Unlock chat
-            </button>
-            {passwordError ? (
-              <p className="text-center text-sm font-medium text-rose-500">{passwordError}</p>
-            ) : null}
-          </form>
-        </div>
-      </main>
-    );
-  }
+  }, [conversationId, errorMessage, isLoadingHistory, isProcessing]);
 
   return (
     <main className="flex min-h-screen flex-col bg-neutral-100 px-3 py-6 text-neutral-900 sm:px-6">
@@ -504,9 +347,9 @@ export default function SessionPage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
                 {hostTitle}
               </p>
-              <h1 className="text-xl font-semibold text-neutral-900">Chat with {hostFullName}</h1>
+              <h1 className="text-xl font-semibold text-neutral-900">Chat with {hostDisplayName}</h1>
               <p className="text-sm text-neutral-500">
-                You&apos;re connected with {hostFullName}
+                You&apos;re connected with {hostDisplayName}
                 {belief ? ` to discuss ${belief.name}.` : ', a volunteer helping our misinformation study.'}
               </p>
               {belief?.summary ? (
@@ -548,7 +391,7 @@ export default function SessionPage() {
                   <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                     <article className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${bubbleClasses}`}>
                       <header className={`mb-1 text-xs font-medium ${nameClasses}`}>
-                        {isUser ? 'You' : hostFullName}
+                        {isUser ? 'You' : hostDisplayName}
                       </header>
                       <p>{message.content}</p>
                     </article>
