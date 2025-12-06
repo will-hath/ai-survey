@@ -1,7 +1,7 @@
 {
   "agents": {
-    "pd": {
-      "key": "pd",
+    "m": {
+      "key": "m",
       "slug": "postdoc",
       "displayName": "Dr. Alex Chen",
       "title": "Postdoctoral Fellow",
@@ -38,8 +38,8 @@
       "docUrl": "https://docs.google.com/document/d/1rNqLlzfWzXZoC4elGr7w7eK-P7mQ-4b9yM0gBz9Mnz8/export?format=pdf",
       "summary": "Notes arguing that the 2020 election was rigged."
     },
-    "covid": {
-      "key": "covid",
+    "co": {
+      "key": "co",
       "name": "Covid vaccine fraud",
       "docUrl": "https://docs.google.com/document/d/1MkH7TCe1Gem5VVZZ4hcnVA-jdqr2sVG4JZ8mZWsYt-g/export?format=pdf",
       "summary": "Claims that governments hide the truth about the vaccine."
