@@ -32,6 +32,7 @@ class ConversationMetadata(TypedDict, total=False):
     responder_id: Optional[str]
     agent_key: Optional[str]
     belief_key: Optional[str]
+    handoff_url: Optional[str]
 
 
 class PublicSessionMetadata(TypedDict):
@@ -41,6 +42,7 @@ class PublicSessionMetadata(TypedDict):
     beliefKey: Optional[str]
     agent: Optional[Dict[str, Optional[str]]]
     belief: Optional[Dict[str, Optional[str]]]
+    handoffUrl: Optional[str]
 
 
 F = TypeVar("F", bound=Callable[..., ResponseReturnValue])
@@ -52,11 +54,6 @@ load_dotenv()
 PASSWORD = os.environ.get("PASSWORD")
 if not PASSWORD:
     raise RuntimeError("PASSWORD environment variable must be set for API access.")
-
-INITIAL_ASSISTANT_MESSAGE = (
-    "Hi, thanks for joining the study. I'm here to chat about any conspiracy "
-    "theories you'd like to discuss. What's on your mind?"
-)
 
 app = Flask(__name__)
 
@@ -106,14 +103,6 @@ def require_password(view_func: F) -> F:
     return cast(F, wrapped)
 
 
-def _render_intro_message(agent: Agent, belief: Belief) -> str:
-    intro = agent.intro_message or ""
-    intro = intro.replace("{agent}", agent.display_name)
-    intro = intro.replace("{agentName}", agent.display_name)
-    intro = intro.replace("{belief}", belief.name)
-    return intro
-
-
 def _attach_belief_context(
     client: openai.OpenAI,
     conversation_id: str,
@@ -131,6 +120,12 @@ def _attach_belief_context(
                     "type": "message",
                     "role": "user",
                     "content": [
+                        {
+                            "type": "input_text",
+                            "text": f"""Your conversation partner answered that they agree with the following statement: {belief.question}.
+                            Here is a packet of evidence that counters this statement for you to use as a resource during the conversation.
+                            The conversation partner did not send you this packet.""",
+                        },
                         {
                             "type": "input_file",
                             "file_url": belief.doc_url,
@@ -157,6 +152,7 @@ def _extract_conversation_metadata(
         "responder_id": cast(Optional[str], metadata.get("responder_id")),
         "agent_key": cast(Optional[str], metadata.get("agent_key")),
         "belief_key": cast(Optional[str], metadata.get("belief_key")),
+        "handoff_url": cast(Optional[str], metadata.get("handoff_url")),
     }
 
 
@@ -179,7 +175,7 @@ def _serialize_content_blocks(
 def _serialize_conversation_items(items: Sequence[Any]) -> List[SerializedMessage]:
     """Convert conversation items into simplified chat messages."""
     serialized: List[SerializedMessage] = []
-    for item in items:
+    for item in items[1:]: # skip the initial belief context message
         if hasattr(item, "model_dump"):
             item_payload = cast(Mapping[str, Any], item.model_dump())
         elif isinstance(item, Mapping):
@@ -192,10 +188,6 @@ def _serialize_conversation_items(items: Sequence[Any]) -> List[SerializedMessag
 
         if item_payload.get("type") != "message":
             # Skip tool calls and other non-message items.
-            continue
-        metadata_candidate = item_payload.get("metadata") or {}
-        metadata: Mapping[str, Any] = metadata_candidate if isinstance(metadata_candidate, Mapping) else {}
-        if metadata.get("category") == "belief_context":
             continue
 
         role_value = item_payload.get("role")
@@ -230,6 +222,7 @@ def create_session() -> ResponseReturnValue:
         responder_id = str(payload.get("responderId") or payload.get("responder_id") or "").strip()
         agent_key = str(payload.get("agentKey") or payload.get("agent_key") or "").strip()
         belief_key = str(payload.get("beliefKey") or payload.get("belief_key") or "").strip()
+        handoff_url = str(payload.get("handoffUrl") or payload.get("handoff_url") or "").strip()
 
         if not participant_name:
             return jsonify({"error": "participantName is required"}), 400
@@ -256,52 +249,17 @@ def create_session() -> ResponseReturnValue:
                 "responder_id": responder_id,
                 "agent_key": agent.key,
                 "belief_key": belief.key,
+                "handoff_url": handoff_url or None,
             }
         )
-        logger.info("conversation: %s", conversation)
+        logger.warning("conversation: %s", conversation)
 
         _attach_belief_context(client, conversation.id, agent, belief, responder_id)
-
-        intro_message = _render_intro_message(agent, belief) or INITIAL_ASSISTANT_MESSAGE
-        intro_item: Dict[str, Any] = {
-            "type": "message",
-            "role": "assistant",
-            "content": [
-                {
-                    "type": "output_text",
-                    "text": intro_message,
-                }
-            ],
-        }
-        created_items = client.conversations.items.create(
-            conversation_id=conversation.id,
-            items=cast(Any, [intro_item]),
-        )
     except openai.OpenAIError as exc:
         logger.exception("Failed to initialize conversation")
         return jsonify({"error": str(exc)}), 500
 
-    items: Sequence[Any]
-    items_candidate = getattr(created_items, "data", None)
-    if items_candidate is None:
-        if hasattr(created_items, "model_dump"):
-            items_payload = cast(Mapping[str, Any], created_items.model_dump())
-            items_candidate = items_payload.get("data", [])
-        elif isinstance(created_items, Mapping):
-            items_candidate = created_items.get("data", [])
-        else:
-            try:
-                created_payload = vars(created_items)
-            except TypeError:
-                items_candidate = []
-            else:
-                items_candidate = created_payload.get("data", [])
-    if isinstance(items_candidate, Sequence):
-        items = items_candidate
-    else:
-        items = []
-
-    messages = _serialize_conversation_items(items)
+    messages: List[SerializedMessage] = []
     session_metadata: PublicSessionMetadata = {
         "participantName": participant_name,
         "responderId": responder_id,
@@ -309,6 +267,7 @@ def create_session() -> ResponseReturnValue:
         "beliefKey": belief.key,
         "agent": agent.to_public_dict(),
         "belief": belief.to_public_dict(),
+        "handoffUrl": handoff_url or None,
     }
     return jsonify({"conversation_id": conversation.id, "messages": messages, "metadata": session_metadata})
 
@@ -371,9 +330,9 @@ def create_message(conversation_id: str) -> ResponseReturnValue:
         responder_id=responder_id,
         metadata=metadata_overrides or None,
     )
-    logger.info("request: %s", response_request)
+    logger.warning("request: %s", response_request)
     response = client.responses.create(**response_request)
-    logger.info("response: %s", response)
+    logger.warning("response: %s", response)
     return jsonify({"response": response.output_text})
 
 
@@ -446,6 +405,7 @@ def get_conversation(conversation_id: str) -> ResponseReturnValue:
         "beliefKey": belief_key,
         "agent": agent.to_public_dict() if agent else None,
         "belief": belief.to_public_dict() if belief else None,
+        "handoffUrl": conversation_metadata.get("handoff_url"),
     }
 
     return jsonify({"conversation_id": conversation_id, "messages": messages, "metadata": response_metadata})

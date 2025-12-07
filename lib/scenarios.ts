@@ -28,6 +28,7 @@ export type StoredSessionMetadata = {
   responderId: string;
   agentKey: string;
   beliefKey: string;
+  handoffUrl?: string;
 };
 
 const config = rawConfig as SurveyConfig;
@@ -37,6 +38,7 @@ export const SURVEY_QUERY_KEYS = {
   belief: 'b',
   responder: 'responder_id',
   responderAlt: 'rid',
+  handoff: 'handoff',
 };
 
 const SESSION_STORAGE_PREFIX = 'survey-session-meta';
@@ -65,8 +67,9 @@ export const parseSurveyParams = (searchParams: ReadonlyURLSearchParams | null) 
     searchParams?.get(SURVEY_QUERY_KEYS.responder) ??
     searchParams?.get(SURVEY_QUERY_KEYS.responderAlt) ??
     null;
+  const handoffUrl = searchParams?.get(SURVEY_QUERY_KEYS.handoff) ?? null;
 
-  return { agentKey, beliefKey, responderId };
+  return { agentKey, beliefKey, responderId, handoffUrl };
 };
 
 const sessionKey = (conversationId: string) => `${SESSION_STORAGE_PREFIX}:${conversationId}`;
@@ -117,7 +120,8 @@ export const clearSessionMetadata = (conversationId: string) => {
 export const buildSessionQuery = (
   agentKey?: string | null,
   beliefKey?: string | null,
-  responderId?: string | null
+  responderId?: string | null,
+  handoffUrl?: string | null
 ) => {
   const params = new URLSearchParams();
   if (agentKey) {
@@ -128,6 +132,9 @@ export const buildSessionQuery = (
   }
   if (responderId) {
     params.set(SURVEY_QUERY_KEYS.responder, responderId);
+  }
+  if (handoffUrl) {
+    params.set(SURVEY_QUERY_KEYS.handoff, handoffUrl);
   }
   const qs = params.toString();
   return qs ? `?${qs}` : '';

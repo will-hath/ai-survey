@@ -33,7 +33,6 @@ class Agent:
     title: str
     avatar_initials: str
     prompt_id: str
-    intro_message: str
     description: Optional[str] = None
 
     @classmethod
@@ -45,7 +44,6 @@ class Agent:
             title=payload["title"],
             avatar_initials=payload["avatarInitials"],
             prompt_id=payload["promptId"],
-            intro_message=payload["introMessage"],
             description=payload.get("description"),
         )
 
@@ -57,7 +55,6 @@ class Agent:
             "title": self.title,
             "avatarInitials": self.avatar_initials,
             "promptId": self.prompt_id,
-            "introMessage": self.intro_message,
             "description": self.description,
         }
 
@@ -67,7 +64,7 @@ class Belief:
     key: str
     name: str
     doc_url: str
-    summary: Optional[str] = None
+    question: str
 
     @classmethod
     def from_dict(cls, payload: BeliefPayload) -> "Belief":
@@ -75,7 +72,7 @@ class Belief:
             key=payload["key"],
             name=payload["name"],
             doc_url=payload["docUrl"],
-            summary=payload.get("summary"),
+            question=payload["question"],
         )
 
     def to_public_dict(self) -> Dict[str, Optional[str]]:
@@ -83,7 +80,7 @@ class Belief:
             "key": self.key,
             "name": self.name,
             "docUrl": self.doc_url,
-            "summary": self.summary,
+            "question": self.question,
         }
 
 
@@ -91,6 +88,8 @@ class Belief:
 class SurveyConfig:
     agents: Dict[str, Agent]
     beliefs: Dict[str, Belief]
+    conversation_soft_cap_user_messages: int
+    conversation_hard_cap_user_messages: int
 
 
 @lru_cache(maxsize=1)
@@ -106,13 +105,14 @@ def load_config() -> SurveyConfig:
 
     agents = {key: Agent.from_dict(value) for key, value in agents_payload.items()}
     beliefs = {key: Belief.from_dict(value) for key, value in beliefs_payload.items()}
-
+    conversation_soft_cap_user_messages = raw.get("conversation_soft_cap_user_messages", 10)
+    conversation_hard_cap_user_messages = raw.get("conversation_hard_cap_user_messages", 20)
     if not agents:
         raise ValueError("At least one agent must be configured.")
     if not beliefs:
         raise ValueError("At least one belief must be configured.")
 
-    return SurveyConfig(agents=agents, beliefs=beliefs)
+    return SurveyConfig(agents=agents, beliefs=beliefs, conversation_soft_cap_user_messages=conversation_soft_cap_user_messages, conversation_hard_cap_user_messages=conversation_hard_cap_user_messages)
 
 
 def resolve_agent(key: str) -> Agent:

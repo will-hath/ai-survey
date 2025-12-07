@@ -7,18 +7,16 @@
       "title": "Postdoctoral Fellow",
       "avatarInitials": "AC",
       "promptId": "pmpt_691dd61ec5208193a13e5fe7b2f9b01302d1f5cfc59d00b9",
-      "introMessage": "Hello, I'm Alex, a postdoc studying how people understand complex information. I'm excited to hear how you see things and to talk through the evidence together.",
-      "description": "Patient expert who references studies and data."
+      "description": "Political science postdoc at MIT."
     },
     "i": {
       "key": "i",
-      "slug": "ai_companion",
+      "slug": "ai",
       "displayName": "Alex (AI companion)",
       "title": "AI Conversation Partner",
       "avatarInitials": "AI",
       "promptId": "pmpt_6914af04234c81979970fee88a68f45c09f06ec256e66276",
-      "introMessage": "Hi there, I'm ALEX, the AI guide for this study. I'm here to listen carefully, explore evidence, and help unpack the topic you're interested in.",
-      "description": "AI persona that is upbeat and transparent about limitations."
+      "description": "AI conversation partner."
     },
     "p": {
       "key": "p",
@@ -27,28 +25,27 @@
       "title": "Political Staffer",
       "avatarInitials": "LC",
       "promptId": "pmpt_6914ae329ebc819595d2bfa6decbb02d0f4686153c99dfde",
-      "introMessage": "Hi, I'm Lyndon, a political staffer who cares a lot about trustworthy information. Let's talk about what's on your mind and see where we agree or disagree.",
-      "description": "Political staffer who emphasizes civic responsibility and dialogue."
+      "description": "Former campaign staffer from Massachusetts."
     }
   },
   "beliefs": {
     "20": {
       "key": "20",
       "name": "2020 election fraud",
-      "docUrl": "https://docs.google.com/document/d/1rNqLlzfWzXZoC4elGr7w7eK-P7mQ-4b9yM0gBz9Mnz8/export?format=pdf",
-      "summary": "Notes arguing that the 2020 election was rigged."
+      "question": "Joe Biden won the 2020 election through voter fraud.",
+      "docUrl": "https://docs.google.com/document/d/1rNqLlzfWzXZoC4elGr7w7eK-P7mQ-4b9yM0gBz9Mnz8/export?format=pdf"
     },
     "co": {
       "key": "co",
-      "name": "Covid vaccine fraud",
-      "docUrl": "https://docs.google.com/document/d/1MkH7TCe1Gem5VVZZ4hcnVA-jdqr2sVG4JZ8mZWsYt-g/export?format=pdf",
-      "summary": "Claims that governments hide the truth about the vaccine."
+      "name": "Covid vaccine danger",
+      "question": "The COVID-19 vaccines have caused thousands of sudden deaths in otherwise healthy people.",
+      "docUrl": "https://docs.google.com/document/d/1MkH7TCe1Gem5VVZZ4hcnVA-jdqr2sVG4JZ8mZWsYt-g/export?format=pdf"
     },
     "16": {
       "key": "16",
-      "name": "Voter fraud",
-      "docUrl": "https://docs.google.com/document/d/1kCCeuM8NL7qBsj3W8pGxGz9YOhSw2Y1etvx9JESRwaw/export?format=pdf",
-      "summary": "Compilation claiming voter fraud in the last election."
+      "name": "Russian interference in the 2016 election",
+      "question": "President Trump directly colluded with the Russian government to influence the 2016 presidential election.",
+      "docUrl": "https://docs.google.com/document/d/1kCCeuM8NL7qBsj3W8pGxGz9YOhSw2Y1etvx9JESRwaw/export?format=pdf"
     }
   }
 }

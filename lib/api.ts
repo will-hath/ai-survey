@@ -3,6 +3,11 @@
 export const SHARED_PASSWORD =
   process.env.NEXT_PUBLIC_SHARED_PASSWORD?.trim() ?? '';
 
+export const CONVERSATION_SOFT_CAP_USER_MESSAGES = 8;
+export const CONVERSATION_HARD_CAP_USER_MESSAGES = 12;
+export const DEFAULT_SURVEY_HANDOFF_URL =
+  'https://mit.co1.qualtrics.com/jfe/form/SV_returnToSurvey';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? '';
 

@@ -2,7 +2,13 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { resolveApiUrl, SHARED_PASSWORD } from '@/lib/api';
+import {
+  resolveApiUrl,
+  SHARED_PASSWORD,
+  CONVERSATION_SOFT_CAP_USER_MESSAGES,
+  CONVERSATION_HARD_CAP_USER_MESSAGES,
+  DEFAULT_SURVEY_HANDOFF_URL,
+} from '@/lib/api';
 import {
   Agent,
   Belief,
@@ -29,6 +35,31 @@ const createId = () => {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
+const WORDS_PER_MINUTE = 100;
+const AVERAGE_CHARACTERS_PER_WORD = 5;
+const MS_PER_CHARACTER = 60000 / (WORDS_PER_MINUTE * AVERAGE_CHARACTERS_PER_WORD);
+const calculateTypingDelay = (text: string) => {
+  const characters = Math.max(text.length, 1);
+  return Math.round(characters * MS_PER_CHARACTER);
+};
+
+const normalizeHandoffUrl = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const SURVEY_HANDOFF_PASSWORD = 'SURVEY-PASSWORD';
+const SURVEY_HANDOFF_LINK_LABEL = 'Return to the Qualtrics survey';
+const SOFT_CAP_NOTICE_HEADING = 'Plan your wrap-up';
+const HARD_CAP_NOTICE_HEADING = 'Message limit reached';
+const SOFT_CAP_NOTICE_BODY =
+  'You can keep sending a few more messages, but please plan to return to the Qualtrics survey soon.';
+const HARD_CAP_NOTICE_BODY =
+  'This is the end of this chat. Please return to the Qualtrics survey now to continue the study.';
+
 export default function SessionPage() {
   const params = useParams();
   const rawConversationId = params?.conversationId;
@@ -36,7 +67,12 @@ export default function SessionPage() {
     ? rawConversationId[0]
     : rawConversationId;
   const searchParams = useSearchParams();
-  const { agentKey: queryAgentKey, beliefKey: queryBeliefKey, responderId: responderIdFromQuery } = useMemo(
+  const {
+    agentKey: queryAgentKey,
+    beliefKey: queryBeliefKey,
+    responderId: responderIdFromQuery,
+    handoffUrl: handoffUrlFromQuery,
+  } = useMemo(
     () => parseSurveyParams(searchParams),
     [searchParams]
   );
@@ -50,6 +86,9 @@ export default function SessionPage() {
   const [statusMessage, setStatusMessage] = useState('Loading previous messages...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [handoffUrl, setHandoffUrl] = useState(
+    normalizeHandoffUrl(handoffUrlFromQuery) ?? DEFAULT_SURVEY_HANDOFF_URL
+  );
 
   const hostFullName = agent?.displayName ?? null;
   const hostDisplayName = hostFullName ?? 'your research partner';
@@ -57,6 +96,25 @@ export default function SessionPage() {
   const hostTitle = agent?.title ?? 'Volunteer researcher';
   const hostAvatarInitials = agent?.avatarInitials ?? 'AV';
   const sharedPassword = SHARED_PASSWORD?.trim() || null;
+  const softCapLimit = CONVERSATION_SOFT_CAP_USER_MESSAGES ?? null;
+  const hardCapLimit = CONVERSATION_HARD_CAP_USER_MESSAGES ?? null;
+  const userMessageCount = useMemo(
+    () => messages.filter((message) => message.role === 'user').length,
+    [messages]
+  );
+  const hasReachedSoftCap = softCapLimit !== null && userMessageCount >= softCapLimit;
+  const hasReachedHardCap = hardCapLimit !== null && userMessageCount >= hardCapLimit;
+  const showSoftCapNotice = hasReachedSoftCap && !hasReachedHardCap;
+  const showHardCapNotice = hasReachedHardCap;
+  const resolvedHandoffUrl = handoffUrl?.trim() || DEFAULT_SURVEY_HANDOFF_URL;
+  const handoffUrlRef = useRef(resolvedHandoffUrl);
+  useEffect(() => {
+    handoffUrlRef.current = resolvedHandoffUrl;
+  }, [resolvedHandoffUrl]);
+  const agentRef = useRef<Agent | null>(agent);
+  useEffect(() => {
+    agentRef.current = agent;
+  }, [agent]);
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -74,6 +132,13 @@ export default function SessionPage() {
   }, [queryAgentKey, queryBeliefKey, responderIdFromQuery]);
 
   useEffect(() => {
+    const normalized = normalizeHandoffUrl(handoffUrlFromQuery);
+    if (normalized) {
+      setHandoffUrl(normalized);
+    }
+  }, [handoffUrlFromQuery]);
+
+  useEffect(() => {
     if (!conversationId) {
       return;
     }
@@ -84,6 +149,10 @@ export default function SessionPage() {
     setResponderId((current) => current || stored.responderId);
     setAgent((current) => current ?? getAgentByKey(stored.agentKey));
     setBelief((current) => current ?? getBeliefByKey(stored.beliefKey));
+    const normalized = normalizeHandoffUrl(stored.handoffUrl);
+    if (normalized) {
+      setHandoffUrl(normalized);
+    }
   }, [conversationId]);
 
   useEffect(() => {
@@ -95,6 +164,13 @@ export default function SessionPage() {
       behavior: 'smooth',
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (hasReachedHardCap) {
+      setStatusMessage('Message limit reached. Return to the survey to continue.');
+      setErrorMessage(null);
+    }
+  }, [hasReachedHardCap]);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,6 +230,10 @@ export default function SessionPage() {
         if (metadata?.responderId) {
           setResponderId(metadata.responderId);
         }
+        const normalizedHandoff = normalizeHandoffUrl(metadata?.handoffUrl);
+        if (normalizedHandoff) {
+          setHandoffUrl(normalizedHandoff);
+        }
         if (
           conversationId &&
           metadata?.responderId &&
@@ -164,6 +244,7 @@ export default function SessionPage() {
             responderId: metadata.responderId,
             agentKey: metadata.agentKey,
             beliefKey: metadata.beliefKey,
+            handoffUrl: metadata.handoffUrl ?? handoffUrlRef.current,
           });
         }
         const assembledMessages: Message[] = history.map((item: any) => ({
@@ -182,7 +263,7 @@ export default function SessionPage() {
 
         setMessages(assembledMessages);
 
-        const displayAgent = metadata?.agent ?? agent;
+        const displayAgent = metadata?.agent ?? agentRef.current ?? undefined;
         const displayName =
           (displayAgent?.displayName as string | undefined) ?? 'your research partner';
         const firstName = displayName.split(' ')[0] ?? displayName;
@@ -223,6 +304,12 @@ export default function SessionPage() {
       return;
     }
 
+    if (hasReachedHardCap) {
+      setErrorMessage('Message limit reached. Please return to the survey to continue.');
+      setStatusMessage('Message limit reached. Return to the survey to continue.');
+      return;
+    }
+
     const trimmed = input.trim();
     if (trimmed.length === 0) {
       return;
@@ -248,6 +335,7 @@ export default function SessionPage() {
       if (sharedPassword) {
         headers.Authorization = `Bearer ${sharedPassword}`;
       }
+      const requestStartedAt = Date.now();
       const response = await fetch(resolveApiUrl(`session/${conversationId}/message`), {
         method: 'POST',
         headers,
@@ -280,6 +368,14 @@ export default function SessionPage() {
           : Array.isArray(payload.response)
           ? payload.response.join('\n')
           : "I'm not sure how to respond to that.";
+
+      const targetDuration = calculateTypingDelay(replyText);
+      const elapsed = Date.now() - requestStartedAt;
+      const remainingDelay = Math.max(targetDuration - elapsed, 0);
+      if (remainingDelay > 0) {
+        setStatusMessage(`${hostFirstName} is drafting a reply...`);
+        await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+      }
 
       const assistantMessage: Message = {
         id: createId(),
@@ -323,6 +419,9 @@ export default function SessionPage() {
     if (!conversationId) {
       return 'Conversation unavailable.';
     }
+    if (hasReachedHardCap) {
+      return 'Message limit reached. Return to the survey to continue.';
+    }
     if (isLoadingHistory) {
       return 'Loading previous messages...';
     }
@@ -333,7 +432,7 @@ export default function SessionPage() {
       return 'Message not sent. You can try again.';
     }
     return null;
-  }, [conversationId, errorMessage, isLoadingHistory, isProcessing]);
+  }, [conversationId, errorMessage, hasReachedHardCap, hostFirstName, isLoadingHistory, isProcessing]);
 
   return (
     <main className="flex min-h-screen flex-col bg-neutral-100 px-3 py-6 text-neutral-900 sm:px-6">
@@ -407,13 +506,61 @@ export default function SessionPage() {
           onSubmit={handleSubmit}
           className="border-t border-neutral-200 bg-white px-6 py-5"
         >
+          {showHardCapNotice ? (
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+              <p className="font-semibold text-rose-900">{HARD_CAP_NOTICE_HEADING}</p>
+              <p className="mt-1 text-rose-800">{HARD_CAP_NOTICE_BODY}</p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-rose-700">
+                Survey password:{' '}
+                <code className="ml-1 rounded bg-white px-2 py-1 text-[11px] text-rose-900">
+                  {SURVEY_HANDOFF_PASSWORD}
+                </code>
+              </p>
+              {resolvedHandoffUrl ? (
+                <a
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-rose-300 bg-white px-4 py-2 text-xs font-semibold text-rose-900 shadow-sm transition hover:bg-rose-50"
+                  href={resolvedHandoffUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {SURVEY_HANDOFF_LINK_LABEL}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showSoftCapNotice ? (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold text-amber-900">{SOFT_CAP_NOTICE_HEADING}</p>
+              <p className="mt-1 text-amber-800">{SOFT_CAP_NOTICE_BODY}</p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Survey password:{' '}
+                <code className="ml-1 rounded bg-white/80 px-2 py-1 text-[11px] text-amber-900">
+                  {SURVEY_HANDOFF_PASSWORD}
+                </code>
+              </p>
+              {resolvedHandoffUrl ? (
+                <a
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-50"
+                  href={resolvedHandoffUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {SURVEY_HANDOFF_LINK_LABEL}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                isLoadingHistory
+                hasReachedHardCap
+                  ? 'Message limit reached. Please return to the survey.'
+                  : isLoadingHistory
                   ? 'Loading previous messages...'
                   : conversationId
                   ? 'Share your thoughts here'
@@ -421,13 +568,13 @@ export default function SessionPage() {
               }
               rows={3}
               className="w-full resize-none rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm leading-relaxed text-neutral-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-neutral-100"
-              disabled={!conversationId || isProcessing || isLoadingHistory}
+              disabled={!conversationId || isProcessing || isLoadingHistory || hasReachedHardCap}
             />
 
             <button
               type="submit"
               className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:bg-blue-300"
-              disabled={!conversationId || isProcessing || isLoadingHistory}
+              disabled={!conversationId || isProcessing || isLoadingHistory || hasReachedHardCap}
             >
               {isProcessing ? 'Sending...' : 'Send message'}
             </button>

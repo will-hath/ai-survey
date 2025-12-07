@@ -4,8 +4,8 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Controversial Opinions',
-  description: 'Talk about your most controversial opinions with experts',
+  title: 'MIT Beliefs Survey: Conversation Portal',
+  description: 'Conversation Portal',
 }
 
 export default function RootLayout({
