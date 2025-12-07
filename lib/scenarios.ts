@@ -8,7 +8,6 @@ export type Agent = {
   title: string;
   avatarInitials: string;
   promptId: string;
-  introMessage: string;
   description?: string;
 };
 

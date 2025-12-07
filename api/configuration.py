@@ -14,7 +14,6 @@ class AgentPayload(TypedDict):
     title: str
     avatarInitials: str
     promptId: str
-    introMessage: str
     description: NotRequired[Optional[str]]
 
 
@@ -89,8 +88,6 @@ class Belief:
 class SurveyConfig:
     agents: Dict[str, Agent]
     beliefs: Dict[str, Belief]
-    conversation_soft_cap_user_messages: int
-    conversation_hard_cap_user_messages: int
 
 
 @lru_cache(maxsize=1)
@@ -106,14 +103,12 @@ def load_config() -> SurveyConfig:
 
     agents = {key: Agent.from_dict(value) for key, value in agents_payload.items()}
     beliefs = {key: Belief.from_dict(value) for key, value in beliefs_payload.items()}
-    conversation_soft_cap_user_messages = raw.get("conversation_soft_cap_user_messages", 10)
-    conversation_hard_cap_user_messages = raw.get("conversation_hard_cap_user_messages", 20)
     if not agents:
         raise ValueError("At least one agent must be configured.")
     if not beliefs:
         raise ValueError("At least one belief must be configured.")
 
-    return SurveyConfig(agents=agents, beliefs=beliefs, conversation_soft_cap_user_messages=conversation_soft_cap_user_messages, conversation_hard_cap_user_messages=conversation_hard_cap_user_messages)
+    return SurveyConfig(agents=agents, beliefs=beliefs)
 
 
 def resolve_agent(key: str) -> Agent:
