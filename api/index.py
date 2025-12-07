@@ -243,15 +243,16 @@ def create_session() -> ResponseReturnValue:
         except KeyError:
             return jsonify({"error": f"Unknown belief key '{belief_key}'"}), 400
 
-        conversation = client.conversations.create(
-            metadata={
-                "participant_name": participant_name,
-                "responder_id": responder_id,
-                "agent_key": agent.key,
-                "belief_key": belief.key,
-                "handoff_url": handoff_url or None,
-            }
-        )
+        conversation_metadata: Dict[str, str] = {
+            "participant_name": participant_name,
+            "responder_id": responder_id,
+            "agent_key": agent.key,
+            "belief_key": belief.key,
+        }
+        if handoff_url:
+            conversation_metadata["handoff_url"] = handoff_url
+
+        conversation = client.conversations.create(metadata=conversation_metadata)
         logger.warning("conversation: %s", conversation)
 
         _attach_belief_context(client, conversation.id, agent, belief, responder_id)

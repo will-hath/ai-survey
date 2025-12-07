@@ -22,6 +22,7 @@ class BeliefPayload(TypedDict):
     key: str
     name: str
     docUrl: str
+    question: str
     summary: NotRequired[Optional[str]]
 
 
