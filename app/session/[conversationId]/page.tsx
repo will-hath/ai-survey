@@ -35,7 +35,7 @@ const createId = () => {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
-const WORDS_PER_MINUTE = 100;
+const WORDS_PER_MINUTE = 200;
 const AVERAGE_CHARACTERS_PER_WORD = 5;
 const MS_PER_CHARACTER = 60000 / (WORDS_PER_MINUTE * AVERAGE_CHARACTERS_PER_WORD);
 const calculateTypingDelay = (text: string) => {
