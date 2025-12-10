@@ -230,16 +230,13 @@ def create_session() -> ResponseReturnValue:
     client = openai.OpenAI()
     try:
         payload = cast(Dict[str, Any], flask_request.get_json(silent=True) or {})
-        participant_name = str(payload.get("participantName") or "").strip()
-        responder_id = str(payload.get("responderId") or payload.get("responder_id") or "").strip()
+        participant_name = str(payload.get("participantName") or "Anonymous").strip()
+        responder_id = str(payload.get("responderId") or payload.get("responder_id") or "unknown_id").strip()
         agent_key = str(payload.get("agentKey") or payload.get("agent_key") or "").strip()
         belief_key = str(payload.get("beliefKey") or payload.get("belief_key") or "").strip()
         handoff_url = str(payload.get("handoffUrl") or payload.get("handoff_url") or "").strip()
 
-        if not participant_name:
-            return jsonify({"error": "participantName is required"}), 400
-        if not responder_id:
-            return jsonify({"error": "responderId is required"}), 400
+
         if not agent_key:
             return jsonify({"error": "agentKey is required"}), 400
         if not belief_key:
@@ -342,7 +339,7 @@ def create_message(conversation_id: str) -> ResponseReturnValue:
         metadata_overrides["participant_name"] = participant_name
 
     if is_initial:
-        message_content = belief.openingMessage.format(agentName=agent.display_name)
+        message_content = belief.openingMessage.format(agentName=agent.display_name.split(' ')[0]) # first name
         # attach it to the conversation
         client.conversations.items.create(
             conversation_id=conversation_id,

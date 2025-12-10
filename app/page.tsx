@@ -54,16 +54,7 @@ export default function WelcomePage() {
       return;
     }
 
-    if (!trimmedParticipantName) {
-      setErrorMessage(`Enter the name you'd like ${hostFirstName} to use.`);
-      return;
-    }
-
     const trimmedResponderId = responderId.trim();
-    if (!trimmedResponderId) {
-      setErrorMessage('Missing responder ID. Please use the original survey link.');
-      return;
-    }
 
     if (!agent || !belief) {
       setErrorMessage('This survey link is missing assignment information.');

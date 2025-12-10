@@ -34,7 +34,7 @@
       "name": "2020 election fraud",
       "question": "Joe Biden won the 2020 election through voter fraud",
       "docUrl": "https://docs.google.com/document/d/1rNqLlzfWzXZoC4elGr7w7eK-P7mQ-4b9yM0gBz9Mnz8/export?format=pdf",
-      "openingMessage": "Hi, I'm {agentName}. according to this, you ranked your belief in the 2020 election fraud highly. Curious if you remember around what score you gave it (doesn't need to be exact), and why. also before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes around 2-3 minutes)."
+      "openingMessage": "Hi, I'm {agentName}. according to this, you ranked your belief in the 2020 election fraud highly. Curious to hear your thoughts on the matter. \n\nalso before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes like 2-3 minutes)."
       
     },
     "co": {
@@ -42,14 +42,14 @@
       "name": "Covid vaccine danger",
       "question": "The COVID-19 vaccines have caused thousands of sudden deaths in otherwise healthy people",
       "docUrl": "https://docs.google.com/document/d/1MkH7TCe1Gem5VVZZ4hcnVA-jdqr2sVG4JZ8mZWsYt-g/export?format=pdf",
-      "openingMessage": "Hi, I'm {agentName}. according to this, you think that the COVID-19 vaccines are more dangerous than most people belief. Curious if you remember around what score you gave it (doesn't need to be exact), and why. also before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes around 2-3 minutes)."
+      "openingMessage": "Hi, I'm {agentName}. according to this, you think that the COVID-19 vaccines are more dangerous than most people belief. Curious to hear your thoughts on the matter. \n\nalso before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes like 2-3 minutes)."
     },
     "16": {
       "key": "16",
       "name": "Russian interference in the 2016 election",
       "question": "President Trump directly colluded with the Russian government to influence the 2016 presidential election",
       "docUrl": "https://docs.google.com/document/d/1kCCeuM8NL7qBsj3W8pGxGz9YOhSw2Y1etvx9JESRwaw/export?format=pdf",
-      "openingMessage": "Hi, I'm {agentName}. according to this, you ranked your belief in Russian interference in the 2016 election highly. Curious if you remember around what score you gave it (doesn't need to be exact), and why. also before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes around 2-3 minutes)."
+      "openingMessage": "Hi, I'm {agentName}. according to this, you ranked your belief in Russian interference in the 2016 election highly. Curious to hear your thoughts on the matter. \n\nalso before you ask for it, i don't have the password for the survey. The website will give it to you once it's decided we've had a 'full' conversation (this usually takes like 2-3 minutes)."
     }
   }
 }

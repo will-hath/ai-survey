@@ -36,7 +36,7 @@ const createId = () => {
 };
 
 const WORDS_PER_MINUTE = 200;
-const AVERAGE_CHARACTERS_PER_WORD = 10;
+const AVERAGE_CHARACTERS_PER_WORD = 5;
 const MS_PER_CHARACTER = 60000 / (WORDS_PER_MINUTE * AVERAGE_CHARACTERS_PER_WORD);
 const calculateTypingDelay = (text: string) => {
   const characters = Math.max(text.length, 1);
@@ -98,12 +98,12 @@ export default function SessionPage() {
   const sharedPassword = SHARED_PASSWORD?.trim() || null;
   const softCapLimit = CONVERSATION_SOFT_CAP_USER_MESSAGES ?? null;
   const hardCapLimit = CONVERSATION_HARD_CAP_USER_MESSAGES ?? null;
-  const userMessageCount = useMemo(
-    () => messages.filter((message) => message.role === 'user').length,
+  const assistantMessageCount = useMemo(
+    () => messages.filter((message) => message.role === 'assistant').length,
     [messages]
   );
-  const hasReachedSoftCap = softCapLimit !== null && userMessageCount >= softCapLimit;
-  const hasReachedHardCap = hardCapLimit !== null && userMessageCount >= hardCapLimit;
+  const hasReachedSoftCap = softCapLimit !== null && assistantMessageCount >= softCapLimit;
+  const hasReachedHardCap = hardCapLimit !== null && assistantMessageCount >= hardCapLimit;
   const showSoftCapNotice = hasReachedSoftCap && !hasReachedHardCap;
   const showHardCapNotice = hasReachedHardCap;
   const resolvedHandoffUrl = handoffUrl?.trim() || DEFAULT_SURVEY_HANDOFF_URL;
@@ -601,7 +601,7 @@ export default function SessionPage() {
                       <header className={`mb-1 text-xs font-medium ${nameClasses}`}>
                         {isUser ? 'You' : hostDisplayName}
                       </header>
-                      <p>{message.content}</p>
+                      <p className="whitespace-pre-wrap">{message.content}</p>
                     </article>
                   </div>
                 );
