@@ -584,7 +584,7 @@ export default function SessionPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-neutral-500">
-              {errorMessage || 'Wait for your conversation partner to send you a message.'}
+              {errorMessage || 'Wait for your conversation partner to initiate the conversation.'}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
