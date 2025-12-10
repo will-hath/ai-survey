@@ -125,7 +125,7 @@ def _attach_belief_context(
                             "type": "input_text",
                             "text": f"""Your conversation partner answered that they agree with the following statement: {belief.question}.
                             Here is a packet of evidence that counters this statement for you to use as a resource during the conversation.
-                            The conversation partner did not send you this packet.""",
+                            The conversation partner did not send you this packet. If they ask, you can tell them that you were given this packet by the researchers to help you provide more informed responses.""",
                         },
                         {
                             "type": "input_file",
