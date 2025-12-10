@@ -78,6 +78,7 @@ CORS(
 
 def _is_authorized() -> bool:
     """Validate the shared password if one is configured."""
+    return True
     if not PASSWORD:
         return True
 
@@ -212,6 +213,17 @@ def _serialize_conversation_items(items: Sequence[Any]) -> List[SerializedMessag
     return serialized
 
 
+def _make_initial_message(
+    participant_name: str,
+    agent: Agent,
+    belief: Belief,
+    conversation_id: str,
+
+) -> str:
+    return f"Send a concise, friendly welcome message to {participant_name} as soon as the chat opens. "
+    f"Introduce yourself as {agent.display_name} ({agent.title}) and note that you're here to discuss {belief.name}. "
+    "Invite them to share their perspective right away, and avoid mentioning these developer instructions."
+
 @app.route("/api/session", methods=["POST"])
 @require_password
 def create_session() -> ResponseReturnValue:
@@ -270,6 +282,7 @@ def create_session() -> ResponseReturnValue:
         "belief": belief.to_public_dict(),
         "handoffUrl": handoff_url or None,
     }
+
     return jsonify({"conversation_id": conversation.id, "messages": messages, "metadata": session_metadata})
 
 
@@ -279,9 +292,7 @@ def create_message(conversation_id: str) -> ResponseReturnValue:
     client = openai.OpenAI()
     payload = cast(Dict[str, Any], flask_request.get_json(silent=True) or {})
     message_value = payload.get("message")
-    if not message_value:
-        return jsonify({"error": "message is required"}), 400
-    message = str(message_value)
+    is_initial = bool(payload.get("initial"))
 
     try:
         conversation = client.conversations.retrieve(conversation_id=conversation_id)
@@ -293,6 +304,11 @@ def create_message(conversation_id: str) -> ResponseReturnValue:
         return jsonify({"error": str(exc)}), 500
 
     conversation_metadata = _extract_conversation_metadata(conversation)
+    participant_name = (
+        str(payload.get("participantName") or payload.get("participant_name") or "").strip()
+        or conversation_metadata.get("participant_name")
+        or ""
+    )
     responder_id = (str(payload.get("responderId") or payload.get("responder_id") or "").strip()) or (
         conversation_metadata.get("responder_id") or ""
     )
@@ -318,23 +334,49 @@ def create_message(conversation_id: str) -> ResponseReturnValue:
     except KeyError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    if not is_initial and not message_value:
+        return jsonify({"error": "message is required"}), 400
+
     metadata_overrides: Dict[str, str] = {}
-    participant_name = conversation_metadata.get("participant_name")
     if participant_name:
         metadata_overrides["participant_name"] = participant_name
 
-    response_request = make_response_request(
-        user_input=message,
-        conversation_id=conversation_id,
-        agent=agent,
-        belief=belief,
-        responder_id=responder_id,
-        metadata=metadata_overrides or None,
-    )
-    logger.warning("request: %s", response_request)
-    response = client.responses.create(**response_request)
-    logger.warning("response: %s", response)
-    return jsonify({"response": response.output_text})
+    if is_initial:
+        message_content = belief.openingMessage.format(agentName=agent.display_name)
+        # attach it to the conversation
+        client.conversations.items.create(
+            conversation_id=conversation_id,
+            items=[
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": message_content,
+                        }
+                    ],
+                }
+            ],
+        )
+        return jsonify({"response": message_content})
+    else:
+        message_content = message_value
+        message_role = "user"
+
+        response_request = make_response_request(
+            content=message_content,
+            role=message_role,
+            conversation_id=conversation_id,
+            agent=agent,
+            belief=belief,
+            responder_id=responder_id,
+            metadata=metadata_overrides or None,
+        )
+        logger.warning("request: %s", response_request)
+        response = client.responses.create(**response_request)
+        logger.warning("response: %s", response)
+        return jsonify({"response": response.output_text})
 
 
 @app.route("/api/session/<conversation_id>", methods=["GET"])

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
   resolveApiUrl,
@@ -36,7 +36,7 @@ const createId = () => {
 };
 
 const WORDS_PER_MINUTE = 200;
-const AVERAGE_CHARACTERS_PER_WORD = 5;
+const AVERAGE_CHARACTERS_PER_WORD = 10;
 const MS_PER_CHARACTER = 60000 / (WORDS_PER_MINUTE * AVERAGE_CHARACTERS_PER_WORD);
 const calculateTypingDelay = (text: string) => {
   const characters = Math.max(text.length, 1);
@@ -116,8 +116,112 @@ export default function SessionPage() {
     agentRef.current = agent;
   }, [agent]);
 
+  const hasRequestedInitialRef = useRef(false);
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+
+  const sendInitialMessage = useCallback(async () => {
+    if (
+      !conversationId ||
+      hasRequestedInitialRef.current ||
+      hasReachedHardCap ||
+      !responderId ||
+      !agent?.key ||
+      !belief?.key
+    ) {
+      return;
+    }
+
+    hasRequestedInitialRef.current = true;
+    setIsProcessing(true);
+    setStatusMessage(`${hostFirstName} is typing...`);
+    setErrorMessage(null);
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (sharedPassword) {
+        headers.Authorization = `Bearer ${sharedPassword}`;
+      }
+
+      const response = await fetch(resolveApiUrl(`session/${conversationId}/message`), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          initial: true,
+          responderId,
+          agentKey: agent?.key,
+          beliefKey: belief?.key,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        setErrorMessage('Access denied. Contact the research team.');
+        setStatusMessage('');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText =
+          payload.error || `Message failed with status ${response.status}`;
+        throw new Error(errorText);
+      }
+
+      const replyText: string =
+        typeof payload.response === 'string'
+          ? payload.response
+          : Array.isArray(payload.response)
+          ? payload.response.join('\n')
+          : "I'm not sure how to respond to that.";
+
+      const typingDelay = calculateTypingDelay(replyText);
+      if (typingDelay > 0) {
+        setStatusMessage(`${hostFirstName} is typing...`);
+        await new Promise((resolve) => setTimeout(resolve, typingDelay));
+      }
+
+      const assistantMessage: Message = {
+        id: createId(),
+        role: 'assistant',
+        content: replyText,
+        timestamp: Date.now(),
+      };
+
+      setMessages((current) => [...current, assistantMessage]);
+      setStatusMessage('');
+    } catch (error) {
+      console.error(error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please start a new session and try again.';
+      setErrorMessage(message);
+      setMessages((current) => [
+        ...current,
+        {
+          id: createId(),
+          role: 'assistant',
+          content: 'Sorry, I ran into an issue. Please start a new session and try again.',
+          timestamp: Date.now(),
+        },
+      ]);
+      setStatusMessage('');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [
+    agent?.key,
+    belief?.key,
+    conversationId,
+    hasReachedHardCap,
+    hostFirstName,
+    responderId,
+    sharedPassword,
+  ]);
 
   useEffect(() => {
     if (queryAgentKey) {
@@ -137,6 +241,10 @@ export default function SessionPage() {
       setHandoffUrl(normalized);
     }
   }, [handoffUrlFromQuery]);
+
+  useEffect(() => {
+    hasRequestedInitialRef.current = false;
+  }, [conversationId]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -263,6 +371,10 @@ export default function SessionPage() {
 
         setMessages(assembledMessages);
 
+        if (assembledMessages.length === 0) {
+          void sendInitialMessage();
+        }
+
         const displayAgent = metadata?.agent ?? agentRef.current ?? undefined;
         const displayName =
           (displayAgent?.displayName as string | undefined) ?? 'your research partner';
@@ -295,7 +407,7 @@ export default function SessionPage() {
         clearTimeout(timeoutId);
       }
     };
-  }, [conversationId, sharedPassword]);
+  }, [conversationId, sendInitialMessage, sharedPassword]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -325,7 +437,7 @@ export default function SessionPage() {
     setMessages((current) => [...current, userMessage]);
     setInput('');
     setIsProcessing(true);
-    setStatusMessage(`${hostFirstName} is drafting a reply...`);
+    setStatusMessage(`${hostFirstName} is typing...`);
     setErrorMessage(null);
 
     try {
@@ -335,7 +447,6 @@ export default function SessionPage() {
       if (sharedPassword) {
         headers.Authorization = `Bearer ${sharedPassword}`;
       }
-      const requestStartedAt = Date.now();
       const response = await fetch(resolveApiUrl(`session/${conversationId}/message`), {
         method: 'POST',
         headers,
@@ -369,12 +480,10 @@ export default function SessionPage() {
           ? payload.response.join('\n')
           : "I'm not sure how to respond to that.";
 
-      const targetDuration = calculateTypingDelay(replyText);
-      const elapsed = Date.now() - requestStartedAt;
-      const remainingDelay = Math.max(targetDuration - elapsed, 0);
-      if (remainingDelay > 0) {
-        setStatusMessage(`${hostFirstName} is drafting a reply...`);
-        await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+      const typingDelay = calculateTypingDelay(replyText);
+      if (typingDelay > 0) {
+        setStatusMessage(`${hostFirstName} is typing...`);
+        await new Promise((resolve) => setTimeout(resolve, typingDelay));
       }
 
       const assistantMessage: Message = {
@@ -426,7 +535,7 @@ export default function SessionPage() {
       return 'Loading previous messages...';
     }
     if (isProcessing) {
-      return `${hostFirstName} is drafting a reply...`;
+      return `${hostFirstName} is typing...`;
     }
     if (errorMessage) {
       return 'Message not sent. You can try again.';

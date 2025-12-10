@@ -16,6 +16,7 @@ export type Belief = {
   name: string;
   docUrl: string;
   summary?: string;
+  openingMessage: string;
 };
 
 export type SurveyConfig = {

@@ -1,6 +1,9 @@
+from openai.types.responses.response_input_param import ResponseInputItemParam
+
+
 from typing import Dict, Mapping, Optional
 
-from openai.types.responses.response_create_params import ResponseCreateParamsNonStreaming
+from openai.types.responses.response_create_params import ResponseCreateParamsNonStreaming, ResponseInputParam
 
 from .configuration import Agent, Belief
 
@@ -23,19 +26,21 @@ def _build_metadata(
 
 def make_response_request(
     *,
-    user_input: str,
+    content: str,
+    role: str,
     conversation_id: str,
     agent: Agent,
     belief: Belief,
     responder_id: str,
     metadata: Optional[Mapping[str, str]] = None,
 ) -> ResponseCreateParamsNonStreaming:
+    assert role in ["user", "developer"]
     combined_metadata = _build_metadata(responder_id, agent, belief, metadata)
     return ResponseCreateParamsNonStreaming(
         prompt={
             "id": agent.prompt_id,
         },
-        input=user_input,
+        input=[{"role": role, "content": content}],
         conversation=conversation_id,
         metadata=combined_metadata,
     )

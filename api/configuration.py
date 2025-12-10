@@ -65,7 +65,8 @@ class Belief:
     name: str
     doc_url: str
     question: str
-
+    openingMessage: str
+    
     @classmethod
     def from_dict(cls, payload: BeliefPayload) -> "Belief":
         return cls(
@@ -73,6 +74,7 @@ class Belief:
             name=payload["name"],
             doc_url=payload["docUrl"],
             question=payload["question"],
+            openingMessage=payload["openingMessage"],
         )
 
     def to_public_dict(self) -> Dict[str, Optional[str]]:
@@ -81,6 +83,7 @@ class Belief:
             "name": self.name,
             "docUrl": self.doc_url,
             "question": self.question,
+            "openingMessage": self.openingMessage,
         }
 
 
