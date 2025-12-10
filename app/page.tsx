@@ -45,7 +45,7 @@ export default function WelcomePage() {
   const handoffUrl = handoffUrlFromQuery?.trim() || DEFAULT_SURVEY_HANDOFF_URL;
   const trimmedParticipantName = participantName.trim();
   const assignmentReady = Boolean(
-    agent && belief && responderId.trim().length > 0 && trimmedParticipantName.length > 0
+    agent && belief
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -191,7 +191,7 @@ export default function WelcomePage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="flex flex-col gap-2 text-left text-sm font-medium text-neutral-700">
-            Your name
+            Your name (optional)
             <input
               type="text"
               value={participantName}
